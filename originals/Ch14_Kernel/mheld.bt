@@ -38,19 +38,22 @@ kretprobe:mutex_lock_interruptible
 /retval == 0 && ($1 == 0 || pid == $1) && @lock_addr[tid]/
 {
 	@held_start[@lock_addr[tid]] = nsecs;
+	@held_stack[@lock_addr[tid]] = kstack(5);
 	delete(@lock_addr[tid]);
 }
 
 kprobe:mutex_unlock
 /($1 == 0 || pid == $1) && @held_start[arg0]/
 {
-	@held_time_ns[ksym(arg0), kstack(5), comm] =
+	@held_time_ns[ksym(arg0), @held_stack[arg0], kstack(5), comm] =
 	    hist(nsecs - @held_start[arg0]);
 	delete(@held_start[arg0]);
+	delete(@held_stack[arg0]);
 }
 
 END
 {
 	clear(@lock_addr);
 	clear(@held_start);
+	clear(@held_stack);
 }
